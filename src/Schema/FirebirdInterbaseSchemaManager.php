@@ -2,6 +2,7 @@
 namespace Kafoso\DoctrineFirebirdDriver\Schema;
 
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use Doctrine\DBAL\Schema\Sequence;
 
 class FirebirdInterbaseSchemaManager extends AbstractSchemaManager
 {
