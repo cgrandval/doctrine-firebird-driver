@@ -1,13 +1,19 @@
 <?php
 namespace Kafoso\DoctrineFirebirdDriver\Driver;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Driver;
-use Doctrine\DBAL\Driver\ExceptionConverterDriver;
-use Doctrine\DBAL\Exception;
+use Doctrine\DBAL\Driver\API\ExceptionConverter as ExceptionConverterInterface;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Kafoso\DoctrineFirebirdDriver\Driver\API\FirebirdInterbase\ExceptionConverter;
 use Kafoso\DoctrineFirebirdDriver\Platforms\FirebirdInterbasePlatform;
 use Kafoso\DoctrineFirebirdDriver\Schema\FirebirdInterbaseSchemaManager;
 
-abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConverterDriver
+/**
+ * Abstract base implementation of the {@see Driver} interface for Firebird/Interbase based drivers.
+ */
+
+abstract class AbstractFirebirdInterbaseDriver implements Driver
 {
     const ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL = 'doctrineTransactionIsolationLevel';
 
@@ -18,61 +24,31 @@ abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConve
     /**
      * {@inheritdoc}
      */
-    public function convertException($message, \Doctrine\DBAL\Driver\DriverException $exception)
+    public function getDatabasePlatform()
     {
-        $message = 'Error ' . $exception->getErrorCode() . ': ' . $message;
-        switch ($exception->getErrorCode()) {
-            case -104:
-                return new \Doctrine\DBAL\Exception\SyntaxErrorException($message, $exception);
-            case -204:
-                if (preg_match('/.*(dynamic sql error).*(table unknown).*/i', $message)) {
-                    return new \Doctrine\DBAL\Exception\TableNotFoundException($message, $exception);
-                }
-                if (preg_match('/.*(dynamic sql error).*(ambiguous field name).*/i', $message)) {
-                    return new \Doctrine\DBAL\Exception\NonUniqueFieldNameException($message, $exception);
-                }
-                break;
-            case -206:
-                if (preg_match('/.*(dynamic sql error).*(table unknown).*/i', $message)) {
-                    return new \Doctrine\DBAL\Exception\InvalidFieldNameException($message, $exception);
-                }
-                if (preg_match('/.*(dynamic sql error).*(column unknown).*/i', $message)) {
-                    return new \Doctrine\DBAL\Exception\InvalidFieldNameException($message, $exception);
-                }
-                break;
-            case -803:
-                return new \Doctrine\DBAL\Exception\UniqueConstraintViolationException($message, $exception);
-            case -530:
-                return new \Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException($message, $exception);
-            case -607:
-                if (preg_match('/.*(unsuccessful metadata update Table).*(already exists).*/i', $message)) {
-                    return new \Doctrine\DBAL\Exception\TableExistsException($message, $exception);
-                }
-                break;
-            case -902:
-                return new \Doctrine\DBAL\Exception\ConnectionException($message, $exception);
-        }
-        return new Exception\DriverException($message, $exception);
+        return new FirebirdInterbasePlatform();
     }
 
     /**
-     * @param string $key
-     * @param mixed $value
-     * @return self
+     * {@inheritdoc}
      */
-    public function setDriverOption($key, $value)
+    public function getSchemaManager(Connection $conn, AbstractPlatform $platform)
     {
-        if (trim($key) && in_array($key, self::getDriverOptionKeys())) {
-            $this->_driverOptions[$key] = $value;
-        }
-        return $this;
+        assert($platform instanceof FirebirdInterbasePlatform);
+
+        return new FirebirdInterbaseSchemaManager($conn, $platform);
+    }
+
+    public function getExceptionConverter(): ExceptionConverterInterface
+    {
+        return new ExceptionConverter();
     }
 
     /**
      * @param array $options
      * @return self
      */
-    public function setDriverOptions($options)
+    public function setDriverOptions($options): AbstractFirebirdInterbaseDriver
     {
         if (is_array($options)) {
             foreach ($options as $k => $v) {
@@ -83,21 +59,25 @@ abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConve
     }
 
     /**
-     * {@inheritdoc}
+     * @param string $key
+     * @param mixed $value
+     * @return self
      */
-    public function getDatabase(\Doctrine\DBAL\Connection $conn)
+    public function setDriverOption($key, $value): AbstractFirebirdInterbaseDriver
     {
-        $params = $conn->getParams();
-        return $params['dbname'];
+        if (trim($key) && in_array($key, self::getDriverOptionKeys())) {
+            $this->_driverOptions[$key] = $value;
+        }
+        return $this;
     }
 
     /**
      * {@inheritdoc}
-     * @return FirebirdInterbasePlatform
      */
-    public function getDatabasePlatform()
+    public function getDatabase(Connection $conn)
     {
-        return new FirebirdInterbasePlatform();
+        $params = $conn->getParams();
+        return $params['dbname'];
     }
 
     /**
@@ -115,24 +95,15 @@ abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConve
     /**
      * @return array
      */
-    public function getDriverOptions()
+    public function getDriverOptions(): array
     {
         return $this->_driverOptions;
     }
 
     /**
-     * {@inheritdoc}
-     * @return FirebirdInterbaseSchemaManager
-     */
-    public function getSchemaManager(\Doctrine\DBAL\Connection $conn)
-    {
-        return new FirebirdInterbaseSchemaManager($conn);
-    }
-
-    /**
      * @return array
      */
-    public static function getDriverOptionKeys()
+    public static function getDriverOptionKeys(): array
     {
         return [
             self::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL,
