@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Kafoso\DoctrineFirebirdDriver\Driver\FirebirdInterbase;
 
+use Doctrine\DBAL\Driver\Result as ResultInterface;
 use Doctrine\DBAL\Driver\Statement as StatementInterface;
 use Kafoso\DoctrineFirebirdDriver\ValueFormatter;
 
@@ -137,7 +138,7 @@ class Statement implements \IteratorAggregate, StatementInterface
                 if (false == is_object($fetchInto)) {
                     throw new Exception(sprintf(
                         "Fetch into (from \$arg2) must be an object. Found: %s",
-                        ValueFormatter::found($fetchClass)
+                        ValueFormatter::found($fetchInto)
                     ));
                 }
                 $this->defaultFetchMode = $fetchMode;
@@ -178,7 +179,7 @@ class Statement implements \IteratorAggregate, StatementInterface
      */
     public function bindValue($param, $value, $type = \PDO::PARAM_STR)
     {
-        return $this->bindParam($param, $value, $type, null);
+        $this->bindParam($param, $value, $type, null);
     }
 
     /**
@@ -229,14 +230,13 @@ class Statement implements \IteratorAggregate, StatementInterface
      * {@inheritdoc}
      * @throws \RuntimeException
      */
-    public function execute($params = null)
+    public function execute($params = null): ResultInterface
     {
         $this->affectedRows = 0;
 
         // Bind passed parameters
         if (is_array($params) && !empty($params)) {
             $idxShift = array_key_exists(0, $params) ? 1 : 0;
-            $hasZeroIndex = array_key_exists(0, $params);
             foreach ($params as $key => $val) {
                 $key = (is_numeric($key)) ? $key + $idxShift : $key;
                 $this->bindValue($key, $val);
@@ -272,7 +272,7 @@ class Statement implements \IteratorAggregate, StatementInterface
             $this->ibaseResultRc = null;
             return false;
         }
-        return true;
+        return new Result($this->statement, $this->ibaseResultRc, $this->affectedRows, $this->numFields);
     }
 
     /**
@@ -659,7 +659,7 @@ class Statement implements \IteratorAggregate, StatementInterface
             throw new Exception(sprintf(
                 "Failed to perform `doDirectExec`: %s",
                 $e->getMessage()
-            ), $e->getSQLState(), $e->getErrorCode());
+            ), $e->getSQLState(), $e->getCode());
         }
         return $resultResource;
     }
@@ -692,7 +692,7 @@ class Statement implements \IteratorAggregate, StatementInterface
             throw new Exception(sprintf(
                 "Failed to perform `doExecPrepared`: %s",
                 $e->getMessage()
-            ), $e->getSQLState(), $e->getErrorCode());
+            ), $e->getSQLState(), $e->getCode());
         }
         return $resultResource;
     }

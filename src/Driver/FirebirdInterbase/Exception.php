@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Kafoso\DoctrineFirebirdDriver\Driver\FirebirdInterbase;
 
-use Doctrine\DBAL\Driver\AbstractDriverException;
+use Doctrine\DBAL\Driver\AbstractException;
 
-class Exception extends AbstractDriverException
+class Exception extends AbstractException
 {
     /**
      * @param array $error

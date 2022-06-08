@@ -2,6 +2,11 @@
 namespace Kafoso\DoctrineFirebirdDriver\Schema;
 
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\ForeignKeyConstraint;
+use Doctrine\DBAL\Schema\Sequence;
+use Doctrine\DBAL\Schema\View;
+use Doctrine\DBAL\Types\Type;
 
 class FirebirdInterbaseSchemaManager extends AbstractSchemaManager
 {
@@ -30,7 +35,7 @@ class FirebirdInterbaseSchemaManager extends AbstractSchemaManager
     protected function _getPortableViewDefinition($view)
     {
         $view = \array_change_key_case($view, CASE_LOWER);
-        return new \Doctrine\DBAL\Schema\View(
+        return new View(
             $this->getQuotedIdentifierName(trim($view['rdb$relation_name'])),
             $this->getQuotedIdentifierName(trim($view['rdb$view_source']))
         );
@@ -147,11 +152,10 @@ class FirebirdInterbaseSchemaManager extends AbstractSchemaManager
 
         if ($tableColumn['FIELD_DESCRIPTION'] !== null) {
             $options['comment'] = $this->removeDoctrineTypeFromComment($tableColumn['FIELD_DESCRIPTION'], $type);
-            if ($options['comment'] === '')
+            if ($options['comment'] === '') {
                 $options['comment'] = null;
+            }
         }
-
-
 
         if (preg_match('/^.*default\s*\'(.*)\'\s*$/i', $tableColumn['FIELD_DEFAULT_SOURCE'], $matches)) {
             // default definition is a string
@@ -185,13 +189,13 @@ class FirebirdInterbaseSchemaManager extends AbstractSchemaManager
             $options['precision'] = $precision;
         }
 
-        return new \Doctrine\DBAL\Schema\Column($tableColumn['FIELD_NAME'], \Doctrine\DBAL\Types\Type::getType($type), $options);
+        return new Column($tableColumn['FIELD_NAME'], Type::getType($type), $options);
     }
 
-    protected function _getPortableTableForeignKeysList($tableForeignKeys)
+    protected function _getPortableTableForeignKeysList($tableForeignKeys): array
     {
         $list = [];
-        foreach ($tableForeignKeys as $key => $value) {
+        foreach ($tableForeignKeys as $value) {
             $value = array_change_key_case($value, CASE_LOWER);
             if (!isset($list[$value['constraint_name']])) {
                 if (!isset($value['on_delete']) || $value['on_delete'] == "RESTRICT") {
@@ -211,12 +215,12 @@ class FirebirdInterbaseSchemaManager extends AbstractSchemaManager
                 ];
             }
             $list[$value['constraint_name']]['local'][] = strtolower($value['field_name']);
-			$list[$value['constraint_name']]['foreign'][] = strtolower($value['references_field']);
+            $list[$value['constraint_name']]['foreign'][] = strtolower($value['references_field']);
         }
 
         $result = [];
         foreach ($list as $constraint) {
-            $result[] = new \Doctrine\DBAL\Schema\ForeignKeyConstraint(
+            $result[] = new ForeignKeyConstraint(
                 array_values($constraint['local']),
                 $constraint['foreignTable'],
                 array_values($constraint['foreign']),
